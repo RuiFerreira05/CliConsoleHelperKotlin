@@ -8,8 +8,8 @@ import kotlin.time.Duration
 import kotlin.time.Instant
 import kotlin.time.TimeSource
 
-class Cli {
-    private var running = true
+class BasicCli {
+    private var running = false
     private var promptProvider: suspend CliContext.() -> String = { ">" }
     private val cliContext = CliContext()
     private val cmdList = mutableListOf<Command>();
@@ -19,18 +19,19 @@ class Cli {
     private var history = mutableListOf<HistoryRow>()
 
     inner class CliContext {
-        val startTime: Instant get() = this@Cli.startTime
-        val runTime: Duration get() = this@Cli.timeMark.elapsedNow()
-        val history: List<HistoryRow> get() = this@Cli.history
-        val lastResult: CommandResult? get() = this@Cli.history.lastOrNull()?.result
-        val cmdCount: Int get() = this@Cli.history.size
+        val startTime: Instant get() = this@BasicCli.startTime
+        val runTime: Duration get() = this@BasicCli.timeMark.elapsedNow()
+        val history: List<HistoryRow> get() = this@BasicCli.history
+        val lastResult: CommandResult? get() = this@BasicCli.history.lastOrNull()?.result
+        val cmdCount: Int get() = this@BasicCli.history.size
 
-        fun stop() = this@Cli.stop()
+        fun stop() = this@BasicCli.stop()
     }
 
     suspend fun start() = withContext(Dispatchers.IO) {
         startTime = Clock.System.now()
         timeMark = TimeSource.Monotonic.markNow()
+        running = true
 
         while (running && isActive) {
             println("Choose a command:\n")
@@ -71,10 +72,10 @@ class Cli {
     }
 
     fun prompt(prompt: suspend CliContext.() -> String) {
-        this@Cli.promptProvider = prompt
+        this@BasicCli.promptProvider = prompt
     }
     fun prompt(prompt: String) {
-        this@Cli.promptProvider = { prompt }
+        this@BasicCli.promptProvider = { prompt }
     }
 
     private fun stop() {
@@ -82,8 +83,8 @@ class Cli {
     }
 
     companion object {
-        operator fun invoke(block: Cli.() -> Unit): Cli {
-            return Cli().apply(block)
+        operator fun invoke(block: BasicCli.() -> Unit): BasicCli {
+            return BasicCli().apply(block)
         }
     }
 
