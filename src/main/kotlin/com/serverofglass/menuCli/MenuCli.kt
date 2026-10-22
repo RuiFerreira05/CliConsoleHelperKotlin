@@ -1,20 +1,32 @@
 package com.serverofglass.menuCli
 
-import com.serverofglass.menuCli.exceptions.NoMenuToDisplayException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlin.time.Clock
+import kotlin.time.Duration
 import kotlin.time.Instant
 import kotlin.time.TimeSource
 
-class MenuCli(
-    private var currentMenu: Menu? = null,
-    private var promptProvider: () -> String = { ">" },
-) {
+class MenuCli(startMenu: Menu) {
+    private var currentMenu: Menu = startMenu
+        set(value) {
+            field = value
+            history.add(field)
+        }
+    private var promptProvider: () -> String = { ">" }
     private var running: Boolean = false
     private var startTime: Instant = Clock.System.now()
     private var timeMark: TimeSource.Monotonic.ValueTimeMark = TimeSource.Monotonic.markNow()
+    private var history = ArrayDeque<Menu>()
+
+    inner class Context {
+        val startTime: Instant get() = this@MenuCli.startTime
+        val runTime: Duration get() = this@MenuCli.timeMark.elapsedNow()
+        val history: List<Menu> get() = this@MenuCli.history.toList()
+
+        fun stop() = this@MenuCli.stop()
+    }
 
     suspend fun start() {
         running = true
@@ -27,7 +39,7 @@ class MenuCli(
 
     private suspend fun loop() = withContext(Dispatchers.IO) {
         while (running && isActive) {
-            currentMenu?.display() ?: throw NoMenuToDisplayException()
+            currentMenu.display()
         }
     }
 }
