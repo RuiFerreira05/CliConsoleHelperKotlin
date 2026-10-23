@@ -1,12 +1,38 @@
 package com.serverofglass.menuCli
 
 class Menu(
-    private val title: String,
-    private val isStart: Boolean = false,
-    private val optionList: List<MenuOption> = listOf(),
+    val title: String,
 ) {
-    suspend fun display() {
+    private val _headers: MutableList<String> = mutableListOf()
+    val headers: List<String> = _headers
 
+    private val _optionList: MutableList<MenuOption> = mutableListOf()
+    val options: List<MenuOption> = _optionList
+
+    fun displayHeader() {
+        println(title)
+        println()
+        for (header in headers) {
+            println(header)
+        }
+    }
+
+    fun displayOptions() {
+        for ((i, option) in options.withIndex()) {
+            println("${i + 1}. $option")
+        }
+    }
+
+    fun addHeader(header: String) {
+        _headers.add(header)
+    }
+
+    fun addOption(option: MenuOption) {
+        _optionList.add(option)
+    }
+
+    fun addOption(title: String, action: MenuCli.ActionScope.() -> Unit) {
+        _optionList.add(MenuOption(title, action))
     }
 }
 
