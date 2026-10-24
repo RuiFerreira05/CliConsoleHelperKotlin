@@ -1,5 +1,6 @@
 package com.serverofglass.menuCli
 
+import com.serverofglass.menuCli.dsl.MenuCliActionScopeDsl
 import com.serverofglass.menuCli.exceptions.MenuCliException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
@@ -15,8 +16,8 @@ class MenuCli(
     private var promptProvider: MenuCliContext.() -> String = { ">" }
     private var currentMenu: Menu = startMenu
         set(value) {
-            field = value
             history.add(field)
+            field = value
         }
     private var running: Boolean = false
     private var startTime: Instant = Clock.System.now()
@@ -39,12 +40,56 @@ class MenuCli(
         val history: List<Menu> get() = this@MenuCli.history.toList()
     }
 
-    inner class ActionScope {
-        val context = this@MenuCli.context
+    inner class ActionScope : MenuCliActionScopeDsl {
+        override val context = this@MenuCli.context
 
-        fun next(menu: Menu) = this@MenuCli.next(menu)
-        fun back() = this@MenuCli.back()
-        fun stop() = this@MenuCli.stop()
+        override fun <T> ask(
+            prompt: String,
+            converter: (rawInput: String) -> T,
+            inline: Boolean,
+            validator: (userInput: T) -> Boolean
+        ): T? = this@MenuCli.ask(
+            prompt,
+            converter,
+            inline,
+            validator,
+        )
+
+        override fun pause(prompt: String) = this@MenuCli.pause(prompt)
+        override fun next(menu: () -> Menu) = this@MenuCli.next(menu())
+        override fun back() = this@MenuCli.back()
+        override fun stop() = this@MenuCli.stop()
+    }
+
+    @Throws(MenuCliException.UnhandledValidatorType::class)
+    fun <T> ask(
+        prompt: String,
+        converter: (rawInput: String) -> T,
+        inline: Boolean,
+        validator: (userInput: T) -> Boolean,
+    ): T? {
+        println()
+        print("$prompt ")
+        if (!inline) {print("\n${promptProvider(context)} ")}
+        val rawInput = readlnOrNull()
+        if (rawInput == null) {
+            stop()
+            return null
+        }
+
+        // propagate exception if thrown
+        val input = converter(rawInput)
+
+        if (!validator(input)) {
+            return null
+        }
+
+        return input
+    }
+
+    fun pause(prompt: String) {
+        println(prompt)
+        readlnOrNull()
     }
 
     @Throws(MenuCliException::class)
@@ -69,16 +114,17 @@ class MenuCli(
     private suspend fun loop() = withContext(Dispatchers.IO) {
         while (running && isActive) {
 
-            if (currentMenu.options.isEmpty()) {throw MenuCliException.NoOptionsInMenuException(currentMenu.title)}
+            if (currentMenu.options.isEmpty()) {
+                throw MenuCliException.NoOptionsInMenuException(currentMenu.title)
+            }
 
             currentMenu.displayHeader()
-
             currentMenu.displayOptions()
 
             print("\n${promptProvider(context)} ")
 
             val userString = readlnOrNull()
-            if (userString == null) {
+            if (userString.isNullOrBlank()) {
                 stop()
                 continue
             }
@@ -94,6 +140,8 @@ class MenuCli(
             }
 
             currentMenu.options[userChoice-1](actionScope)
+
+            println()
         }
     }
 }

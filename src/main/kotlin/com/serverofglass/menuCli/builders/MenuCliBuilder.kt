@@ -18,11 +18,13 @@ class MenuCliBuilder : MenuCliBuilderDsl {
         promptProvider = block
     }
 
-    override fun menu(title: String, block: MenuBuilder.() -> Menu): Menu {
+    override fun menu(title: String, start: Boolean, block: MenuBuilder.() -> Unit): Menu {
         val builder = MenuBuilder()
         builder.setTitle(title)
         builder.block()
-        return builder.build()
+        val menu = builder.build()
+        if (start || startMenu == null) {startMenu = menu}
+        return menu
     }
 
     fun build(): MenuCli {
